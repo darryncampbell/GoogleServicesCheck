@@ -1,20 +1,20 @@
-package com.darryncampbell.googleservicescheck;
+package com.darryncampbell.gservicescheck;
 
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.ApiException;
-import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
@@ -23,7 +23,8 @@ import com.google.android.gms.location.LocationSettingsStatusCodes;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 
-public class MainActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
+public class MainActivity extends AppCompatActivity {
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,17 +32,21 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         setContentView(R.layout.activity_main);
 
         //  Detecting the presence of Google Services
-        GoogleApiClient mGoogleApiClient_GMS;
-        setGmsServicesAvailable("Initialising");
-        mGoogleApiClient_GMS = new GoogleApiClient.Builder(getApplicationContext())
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .addApi(LocationServices.API)
-                .build();
-        if (!mGoogleApiClient_GMS.isConnected())
-            mGoogleApiClient_GMS.connect();
+        GoogleApiAvailability googleAPI = GoogleApiAvailability.getInstance();
+        int result = googleAPI.isGooglePlayServicesAvailable(this);
+        //  https://developers.google.com/android/reference/com/google/android/gms/common/GoogleApiAvailability.html#isGooglePlayServicesAvailable(android.content.Context)
+        if (result == ConnectionResult.SUCCESS)
+        {
+            setGmsServicesAvailable("Yes");
+            CheckLocationServices();
+        }
+        else if (result == ConnectionResult.SERVICE_VERSION_UPDATE_REQUIRED ||
+                result == ConnectionResult.SERVICE_UPDATING)
+            setGmsServicesAvailable("Yes but requires user action to update");
+        else
+            setGmsServicesAvailable("No");
 
-        setGmsLocationServicesAvailalbe("Pending");
+        setGmsLocationServicesAvailalbe("No, Google services are not available");
 
         //  Detecting whether intents will resolve prior to launching them
         final PackageManager pm = getPackageManager();
@@ -78,27 +83,6 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         });
     }
 
-    @Override
-    public void onConnected(@Nullable Bundle bundle) {
-        setGmsServicesAvailable("Yes");
-        //  Since we have GMS Services available we can run the Location Services test
-        CheckLocationServices();
-    }
-
-    @Override
-    public void onConnectionSuspended(int i) {
-        setGmsServicesAvailable("No - Suspended");
-        setGmsLocationServicesAvailalbe("No");
-    }
-
-    @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-        String reason = "";
-        if (connectionResult.getErrorMessage() != null)
-            reason = " - " + connectionResult.getErrorMessage();
-        setGmsServicesAvailable("No" + reason);
-        setGmsLocationServicesAvailalbe("No");
-    }
 
     private void CheckLocationServices()
     {
@@ -122,8 +106,6 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                     switch (exception.getStatusCode())
                     {
                         case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
-                            setGmsLocationServicesAvailalbe("No, requires user action");
-                            break;
                         case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
                             setGmsLocationServicesAvailalbe("No, cannot be satisfied");
                             break;
